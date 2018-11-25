@@ -357,7 +357,6 @@ def calc_真正的有季度比例型矩阵(year):
     for i in range(50):
         if 判据矩阵.iloc[i].bool() == False:
             droplist.append(比例型矩阵.index[i])
-    print(droplist)
     return 比例型矩阵.drop(droplist)
 
 def calc_真正的无季度比例型矩阵(month):
@@ -500,7 +499,7 @@ def pre_data_build(col_name):
         ref_ser = ref.iloc[i]
         func = linear_fit(ser*ref_ser)
         y = func(x)
-        ydropng = [(0 if item < 0 else item) for item in y]
+        ydropng = [(1 if item < 0 else item) for item in y]
         ser = pd.Series(ydropng, name=data.index[i])
         ser_list.append(ser)
     df = pd.DataFrame(ser_list)
@@ -516,7 +515,7 @@ def pre_data_ro_build(col_name):
             gray = Gray_model()
             gray.fit(ser)
             result = gray.predict(36)
-            ydropng = [(0 if item < 0 else item) for item in result]
+            ydropng = [(1 if item < 0 else item) for item in result]
             ser = pd.Series(ydropng, name=data.index[i])
             ser_list.append(ser)
         else:
@@ -563,15 +562,21 @@ def calc_第二题数量型矩阵(month):
     return MM
 
 def calc_第二题比例型数值(month):
-    columns = ["Delta", "Above", "Below", "Bach"]
-    require = pd.read_excel("pre_data/require_pre.xlsx", index_col=0)
+    columns = ["Above", "Below", "Bach"]
+    require = pd.read_excel("pre_data/Require_pre.xlsx", index_col=0)
     total = {}
+    df = pd.read_excel("pre_data/Offer_pre.xlsx", index_col=0)
+    ser = df.loc[:,month]
+    ser_req = require.loc[:, month]
+    total.update({"Delta": ser/ser_req})
     for item in columns:
         df = pd.read_excel("pre_data/"+item+"_pre.xlsx", index_col=0)
         ser = df.loc[:,month]
         ser_req = require.loc[:, month].sum()
         total.update({item: ser/ser_req})
     D_Martix = pd.DataFrame(total)
+    D_Martix.replace(np.nan, 0, inplace=True)
+    D_Martix.replace(np.inf, 0, inplace=True)
     return D_Martix
 
 def calc_第二题比例型矩阵(month):
@@ -600,6 +605,49 @@ def calc_第二题得分():
     write_excel(sl, 'pre_data/Score_Number.xlsx')
     write_excel(bl, 'pre_data/Score_Scale.xlsx')
     
+def 比例型得分打表():
+    bl = dict()
+    for item in range(3):
+        slf, blf, df = calc_有季度平均得分矩阵(item)
+        ser = blf.iloc[:, 0]
+        bl.update({item: ser})
+    bl = pd.DataFrame(bl)
+    write_excel(bl, 'YearlyBili.xlsx')
+    bl = dict()
+    for item in range(36):
+        slf, blf, df = calc_无季度平均得分矩阵(item)
+        ser = blf.iloc[:, 0]
+        bl.update({item: ser})
+    bl = pd.DataFrame(bl)
+    write_excel(bl, 'MonthlyBili.xlsx')
+    
+def calc_linear_para():
+    df = pd.read_excel("out_data/第二题.xlsx", index_col=0)
+    df = df.drop(["类"], axis=1)
+    adict = {}
+    bdict = {}
+    for i in range(50):
+        a = float(str(linear_fit(df.iloc[i])).strip().split(' ')[0])
+        b = float(str(linear_fit(df.iloc[i])).strip().split(' ')[3])
+        adict.update({df.index[i]: a})
+        bdict.update({df.index[i]: b})
+    aser = pd.Series(adict, name="a")
+    bser = pd.Series(bdict, name="b")
+    data = pd.DataFrame([aser, bser]).T
+    write_excel(data, 'out_data/LinearFit_Second.xlsx')
+    df = pd.read_excel("out_data/第三题.xlsx", index_col=0).replace(np.nan, 0)
+    adict = {}
+    bdict = {}
+    for i in range(10):
+        a = float(str(linear_fit(df.iloc[i])).strip().split(' ')[0])
+        b = float(str(linear_fit(df.iloc[i])).strip().split(' ')[3])
+        adict.update({df.index[i]: a})
+        bdict.update({df.index[i]: b})
+    aser = pd.Series(adict, name="a")
+    bser = pd.Series(bdict, name="b")
+    data = pd.DataFrame([aser, bser]).T
+    write_excel(data, 'out_data/LinearFit_Trird.xlsx')
+    
 def main():
     start = time.clock()
     generate_data()
@@ -613,6 +661,7 @@ def main():
     print("Start Calc ...")
     calc_第二题得分()
     calc_sec = (time.clock() - gen_sec)
+    比例型得分打表()
     elapsed = (time.clock() - start)
     print("Generator First Data used:",gen_first)
     print("Calculate First Data used:",calc_first)
